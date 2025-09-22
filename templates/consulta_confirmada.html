@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Consulta Confirmada</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+  <header class="bg-green-600 text-white p-6 shadow-md">
+    <h1 class="text-3xl font-bold">Consulta Marcada com Sucesso!</h1>
+  </header>
+
+  <main class="p-6 space-y-8">
+    <div class="bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-xl font-semibold text-gray-700 mb-4"><i class="fa-solid fa-user-check mr-2"></i>Detalhes da Consulta</h2>
+
+      <ul class="space-y-2 text-gray-700">
+        <li><span class="font-semibold">Paciente:</span> {{ paciente.nome }}</li>
+        <li><span class="font-semibold">Idade:</span> {{ paciente.idade }}</li>
+        <li><span class="font-semibold">UBS Agendada:</span> {{ ubs.nome }}</li>
+        <li><span class="font-semibold">Data/Hora:</span> {{ consulta.data_hora }}</li>
+        <li><span class="font-semibold">Urgência:</span> {{ consulta.urgencia }}</li>
+      </ul>
+    </div>
+
+    <!-- Mini mapa -->
+    {% if paciente_coord and ubs %}
+    <div id="map" class="h-96 w-full rounded-lg shadow-md"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script>
+      var map = L.map('map').setView([{{ paciente_coord[0] }}, {{ paciente_coord[1] }}], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+      }).addTo(map);
+
+      // Paciente em vermelho
+      L.marker([{{ paciente_coord[0] }}, {{ paciente_coord[1] }}], {icon: L.icon({iconUrl: 'https://cdn-icons-png.flaticon.com/512/149/149060.png', iconSize:[35,35]})})
+        .addTo(map)
+        .bindPopup("Paciente: {{ paciente.nome }}");
+
+      // UBS em hospital
+      L.marker([{{ ubs.latitude }}, {{ ubs.longitude }}], {icon: L.icon({iconUrl: 'https://cdn-icons-png.flaticon.com/512/4320/4320350.png', iconSize:[35,35]})})
+        .addTo(map)
+        .bindPopup("UBS: {{ ubs.nome }}");
+    </script>
+    {% endif %}
+
+    <!-- Botões de ação -->
+    <div class="flex space-x-4 justify-end mt-6">
+      <a href="{{ url_for('pacientes') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md transition flex items-center">
+        <i class="fa-solid fa-arrow-left mr-2"></i>Voltar aos Pacientes
+      </a>
+      <a href="{{ url_for('logout') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-md transition flex items-center">
+        <i class="fa-solid fa-right-from-bracket mr-2"></i>Sair
+      </a>
+    </div>
+
+  </main>
+
+</body>
+</html>

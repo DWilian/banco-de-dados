@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Paciente - {{ paciente.nome }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 300px;
+            background-color: #2E7D32;
+            color: #fff;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .sidebar h2 {
+            text-align: center;
+            margin-top: 0;
+        }
+        .ubs-item {
+            background-color: rgba(255,255,255,0.15);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .ubs-item.selected {
+            background-color: #FFD700;
+            color: #000;
+            font-weight: bold;
+        }
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            padding: 20px;
+            background: linear-gradient(135deg, #4CAF50, #81C784);
+            text-align: center;
+            color: #fff;
+        }
+        #map { flex: 1; }
+        .info {
+            background-color: rgba(0,0,0,0.05);
+            padding: 15px;
+            text-align: center;
+        }
+        label, select, input[type=submit], .btn {
+            display: block;
+            margin: 10px auto;
+        }
+        select, input[type=submit], .btn {
+            padding: 8px;
+            border-radius: 5px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        input[type=submit] { background-color: #FFD700; }
+        .btn { background-color: #4CAF50; color: white; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>UBS Próximas</h2>
+    {% if ubs_proximas %}
+        {% for u, d in ubs_proximas %}
+            <div class="ubs-item" data-id="{{ u.id }}">
+                <strong>{{ u.nome }}</strong><br>
+                {{ "%.2f"|format(d) }} km
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Nenhuma UBS próxima encontrada.</p>
+    {% endif %}
+</div>
+
+<div class="main">
+    <header>
+        <h1>Paciente: {{ paciente.nome }}</h1>
+        <p>Sintomas: {{ paciente.sintomas }}</p>
+        <p>Endereço: {{ paciente.endereco }}</p>
+    </header>
+    <div id="map"></div>
+
+    {% if ubs_proximas %}
+        <form method="POST" style="text-align:center;">
+            <input type="hidden" name="ubs" id="ubsInput" required>
+            <label>Nível de Atendimento:</label>
+            <select name="urgencia" required>
+                <option value="Baixa">Baixa</option>
+                <option value="Média">Média</option>
+                <option value="Alta">Alta</option>
+            </select>
+            <input type="submit" value="Marcar Consulta">
+        </form>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+<script>
+    var pacienteCoord = [{{ paciente_coord[0] }}, {{ paciente_coord[1] }}];
+
+    var ubsData = [
+        {% for u, d in ubs_proximas %}
+        {
+            id: {{ u.id }},
+            nome: "{{ u.nome }}",
+            endereco: "{{ u.endereco }}",
+            lat: {{ u.latitude }},
+            lon: {{ u.longitude }},
+            dist: {{ "%.2f"|format(d) }}
+        },
+        {% endfor %}
+    ];
+
+    var map = L.map('map').setView(pacienteCoord, 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    var pacienteIcon = L.icon({
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/1946/1946429.png',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32]
+    });
+    var hospitalIcon = L.icon({
+        iconUrl: '/static/icons/hospital.png',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32]
+    });
+
+    // Marcador paciente
+    L.marker(pacienteCoord, {icon: pacienteIcon}).addTo(map).bindPopup("Paciente: {{ paciente.nome }}").openPopup();
+
+    // Marcadores UBS/AMA
+    var ubsMarkers = [];
+    ubsData.forEach(function(u){
+        var m = L.marker([u.lat, u.lon], {icon: hospitalIcon}).addTo(map)
+            .bindPopup(u.nome + "<br>" + u.endereco + "<br>" + u.dist + " km");
+        ubsMarkers.push(m);
+    });
+
+    // Interatividade lateral
+    var ubsItems = document.querySelectorAll('.ubs-item');
+    ubsItems.forEach(function(item, index){
+        item.addEventListener('click', function(){
+            ubsItems.forEach(i => i.classList.remove('selected'));
+            item.classList.add('selected');
+            document.getElementById('ubsInput').value = item.dataset.id;
+
+            var m = ubsMarkers[index];
+            map.setView(m.getLatLng(), 16);
+            m.openPopup();
+
+            Toastify({
+                text: "UBS '" + ubsData[index].nome + "' selecionada!",
+                duration: 3000,
+                gravity: "top",
+                position: "right",
+                backgroundColor: "#4CAF50",
+                stopOnFocus: true,
+            }).showToast();
+        });
+    });
+</script>
+
+</body>
+</html>
