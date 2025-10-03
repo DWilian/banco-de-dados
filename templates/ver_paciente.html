@@ -92,19 +92,31 @@
         <p>Endereço: {{ paciente.endereco }}</p>
     </header>
     <div id="map"></div>
+    <div style="text-align:center; margin:20px;">
+    <a href="{{ url_for('gerar_atestado', paciente_id=paciente.id) }}" class="btn" style="background-color:#FF9800; color:white;">Gerar Atestado</a>
+</div>
 
-    {% if ubs_proximas %}
-        <form method="POST" style="text-align:center;">
-            <input type="hidden" name="ubs" id="ubsInput" required>
-            <label>Nível de Atendimento:</label>
-            <select name="urgencia" required>
-                <option value="Baixa">Baixa</option>
-                <option value="Média">Média</option>
-                <option value="Alta">Alta</option>
-            </select>
-            <input type="submit" value="Marcar Consulta">
-        </form>
-    {% endif %}
+
+ {% if ubs_proximas %}
+<form method="POST" style="text-align:center;">
+    <input type="hidden" name="ubs" id="ubsInput" required>
+
+    <label>Nível de Atendimento:</label>
+    <select name="urgencia" required>
+        <option value="Baixa">Baixa</option>
+        <option value="Média">Média</option>
+        <option value="Alta">Alta</option>
+    </select>
+
+    <label>Data da Consulta:</label>
+    <input type="date" name="data_consulta" required>
+
+    <label>Hora da Consulta:</label>
+    <input type="time" name="hora_consulta" required>
+
+    <input type="submit" value="Marcar Consulta">
+</form>
+{% endif %}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>

@@ -1,9 +1,12 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 import sqlite3
 from geopy.geocoders import Nominatim
 from geopy.distance import distance
 from datetime import datetime
 import os
+import io
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
@@ -95,16 +98,20 @@ def ver_paciente(id):
     if request.method == "POST":
         id_ubs = request.form.get("ubs")
         urgencia = request.form.get("urgencia")
+        data_consulta = request.form.get("data_consulta")
+        hora_consulta = request.form.get("hora_consulta")
 
-        # Validação: UBS não selecionada
-        if not id_ubs:
-            flash("❌ Por favor, selecione uma UBS para marcar a consulta!", "error")
+        if not id_ubs or not data_consulta or not hora_consulta:
+            flash("❌ Preencha todos os campos!", "error")
             return redirect(url_for("ver_paciente", id=id))
+
+        # Combina data e hora em um único datetime
+        data_hora = f"{data_consulta} {hora_consulta}:00"
 
         cursor = conn.cursor()
         cursor.execute(
             "INSERT INTO consulta (id_paciente, id_ubs, data_hora, urgencia) VALUES (?, ?, ?, ?)",
-            (paciente["id"], int(id_ubs), datetime.now(), urgencia)
+            (paciente["id"], int(id_ubs), data_hora, urgencia)
         )
         conn.commit()
         conn.close()
@@ -145,6 +152,80 @@ def consulta_confirmada(paciente_id, ubs_id):
         consulta=consulta,
         paciente_coord=paciente_coord
     )
+
+@app.route("/gerar_atestado/<int:paciente_id>", methods=["GET", "POST"])
+def gerar_atestado(paciente_id):
+    if "medico" not in session:
+        return redirect(url_for("login"))
+
+    conn = get_db_connection()
+    paciente = conn.execute("SELECT * FROM pacientes WHERE id=?", (paciente_id,)).fetchone()
+    consulta = conn.execute("""
+        SELECT * FROM consulta WHERE id_paciente=? ORDER BY data_hora DESC LIMIT 1
+    """, (paciente_id,)).fetchone()
+    conn.close()
+
+    if request.method == "POST":
+        descricao = request.form.get("descricao", "Atestado Médico")
+        nome_medico = request.form.get("nome_medico", "Médico não informado")
+
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+
+        left_margin = 50
+        top_margin = height - 50
+        c.setLineWidth(2)
+        c.rect(30, 30, width-60, height-60)
+
+        # Logo
+        logo_path = "static/logo.png"  # Coloque sua logo em /static/logo.png
+        if os.path.exists(logo_path):
+            c.drawImage(logo_path, width/2 - 50, top_margin - 80, width=100, preserveAspectRatio=True, mask='auto')
+
+        c.setFont("Helvetica-Bold", 20)
+        c.drawCentredString(width / 2, top_margin - 120, "ATESTADO MÉDICO")
+        y = top_margin - 160
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(left_margin, y, f"Paciente: {paciente['nome']}")
+        y -= 20
+        c.drawString(left_margin, y, f"Idade: {paciente['idade']}")
+        y -= 20
+        c.drawString(left_margin, y, f"Endereço: {paciente['endereco']}")
+        if consulta:
+            y -= 30
+            c.setFont("Helvetica", 12)
+            c.drawString(left_margin, y, f"Data/Hora da Consulta: {consulta['data_hora']}")
+            y -= 20
+            c.drawString(left_margin, y, f"Urgência: {consulta['urgencia']}")
+        y -= 40
+        caixa_altura = 60  # altura do retângulo
+        c.setStrokeColorRGB(0.2, 0.2, 0.2)
+        c.setFillColorRGB(0.95, 0.95, 0.95)
+        c.rect(left_margin - 5, y - caixa_altura, width - left_margin * 2 + 10, caixa_altura, fill=1)
+        c.setFillColorRGB(0,0,0)
+        text = c.beginText(left_margin + 5, y - 20)  # +5 para margem interna
+        text.setFont("Helvetica", 12)
+        text.textLines(descricao)
+        c.drawText(text)
+
+        # Linha para assinatura
+        c.line(width-300, 120, width-100, 120)
+        c.setFont("Helvetica", 12)
+        c.drawString(width-300, 100, f"Médico: {nome_medico}")
+
+        # Rodapé
+        c.setFont("Helvetica-Oblique", 10)
+        c.drawCentredString(width/2, 50, "Atestado válido mediante conferência dos dados e assinatura do médico.")
+
+        c.showPage()
+        c.save()
+        buffer.seek(0)
+
+        return send_file(buffer, as_attachment=True, download_name=f"Atestado_{paciente['nome']}.pdf", mimetype='application/pdf')
+
+    return render_template("atestado_form.html", paciente=paciente)
+
 
 @app.route("/logout")
 def logout():
