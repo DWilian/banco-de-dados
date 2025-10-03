@@ -105,7 +105,6 @@ def ver_paciente(id):
             flash("❌ Preencha todos os campos!", "error")
             return redirect(url_for("ver_paciente", id=id))
 
-        # Combina data e hora em um único datetime
         data_hora = f"{data_consulta} {hora_consulta}:00"
 
         cursor = conn.cursor()
@@ -177,8 +176,6 @@ def gerar_atestado(paciente_id):
         top_margin = height - 50
         c.setLineWidth(2)
         c.rect(30, 30, width-60, height-60)
-
-        # Logo
         logo_path = "static/logo.png"  # Coloque sua logo em /static/logo.png
         if os.path.exists(logo_path):
             c.drawImage(logo_path, width/2 - 50, top_margin - 80, width=100, preserveAspectRatio=True, mask='auto')
@@ -208,13 +205,9 @@ def gerar_atestado(paciente_id):
         text.setFont("Helvetica", 12)
         text.textLines(descricao)
         c.drawText(text)
-
-        # Linha para assinatura
         c.line(width-300, 120, width-100, 120)
         c.setFont("Helvetica", 12)
         c.drawString(width-300, 100, f"Médico: {nome_medico}")
-
-        # Rodapé
         c.setFont("Helvetica-Oblique", 10)
         c.drawCentredString(width/2, 50, "Atestado válido mediante conferência dos dados e assinatura do médico.")
 
